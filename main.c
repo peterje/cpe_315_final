@@ -7,11 +7,19 @@
 
 /* The higher the level, the lookups are required to get to the index */
 #define INDIRECTION_LEVEL 512
-/* 1: Use optimal strategy */
-/* 0: Use suboptimal strategy */
+
+/* Determines whether a linear or randomized access pattern is used
+ * 1 means linear, 0 means randomized */
 #define CACHE_OPTIMIZED 0
-/* Enabling this should slow down the program further */
+
+/* Determines whether a branch is used based on the value read
+ * This will cause many branch predictions failures if CACHE_OPTIMIZED = 1*/
 #define ENABLE_BRANCH 0
+
+/* Determines the number of elements are linearly searched in a single lookup. */
+#define SUMMATION_LEVEL 0
+
+
 
 
 uint32_t * generate_indexes(int size) {
@@ -53,6 +61,12 @@ uint32_t read_down_tree(uint32_t** lookup_table, uint32_t depth, uint32_t index,
     if (depth == 0) {
         return data[index];
     }
+    uint32_t sum = 0;
+    /* Sum the next SUMMATION_LEVEL elements in data */
+    for (uint32_t i = 0; i+index < ARR_SIZE && i<SUMMATION_LEVEL; ++i) {
+        sum += data[index+i];
+    }
+
     return read_down_tree(lookup_table, depth - 1, lookup_table[depth - 1][index], data);
 }
 
@@ -71,6 +85,13 @@ uint32_t traverse_direct(uint32_t* data, uint32_t** lookup_table){
     return count;
 }
 
+void free_lookup_table(uint32_t** lookup_table, uint32_t depth) {
+    for (uint32_t i = 0; i < depth; ++i) {
+        free(lookup_table[i]);
+    }
+    free(lookup_table);
+}
+
 int main() {
     uint32_t* data = generate_indexes(ARR_SIZE);
     uint32_t** lookup_table = NULL;
@@ -81,6 +102,8 @@ int main() {
     }
     uint32_t result = traverse_direct(data, lookup_table);
     printf("%d\n", result);
+    free_lookup_table(lookup_table, INDIRECTION_LEVEL);
+    free(data);
     return 0;
 }
 
